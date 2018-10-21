@@ -1,0 +1,74 @@
+@page "/thread/{threadId}"
+@using System.Runtime.InteropServices
+@inject HttpClient Http
+<NavLink class="btn btn-secondary mb-3 mt-5" href="/">戻る</NavLink>
+<h2>@_thread.Title</h2>
+<div class="card mb-5">
+    <div class="card-body">
+        @{
+            var count = 1;
+        }
+        @foreach (var response in _thread.BoardResponses)
+        {
+            <div>@(count++) <span class="text-success">@(string.IsNullOrWhiteSpace(response.Name) ? blazor.Shared.Define.DefaultName : response.Name)</span> @response.Created.ToString("yyyy/MM/dd HH:mm:ss")</div>
+            <p class="mb-5">@response.Body</p>
+        }
+    </div>
+   
+</div>
+    
+
+<form onsubmit=@Submit class="card">
+    <div class="card-body">
+        <div class="form-group">
+            <label for="name">名前(省略化)</label>
+            <input type="text" class="form-control" id="name" bind="@_response.Name" placeholder="@blazor.Shared.Define.DefaultName"/>
+        </div>
+        <div class="form-group">
+            <label for="body">本文</label>
+            <textarea class="form-control@(_errors.ContainsKey("body") ? " is-invalid" : "")" id="body" rows="10" placeholder="本文" bind="@_response.Body"></textarea>
+            @if (_errors.ContainsKey("body"))
+            {
+                <div class="invalid-feedback">@_errors["body"]</div>
+            }
+        </div>
+        <button type="submit" class="btn btn-primary">書き込む</button>
+    </div>
+</form>
+@functions
+{
+    [Parameter]
+    string ThreadId { get; set; }
+    
+    blazor.Shared.BoardThread _thread = new blazor.Shared.BoardThread(){ BoardResponses =  new List<blazor.Shared.BoardResponse>()};
+    blazor.Shared.BoardResponse _response = new blazor.Shared.BoardResponse();
+    Dictionary<string, string> _errors = new Dictionary<string, string>();
+
+    protected override async Task OnInitAsync()
+    {
+        await Refresh();
+    }
+    
+    async Task Submit()
+    {
+        _errors.Clear();
+        if (string.IsNullOrWhiteSpace(_response.Body))
+        {
+            _errors.Add("body", "本文を入力してください");
+        }
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+        
+        await Http.PostJsonAsync($"api/boardresponse/{ThreadId}", _response );
+        await Refresh();
+        _response = new blazor.Shared.BoardResponse();
+    }
+
+    async Task Refresh()
+    {
+        _thread = await Http.GetJsonAsync<blazor.Shared.BoardThread>($"api/boardresponse/{ThreadId}");
+    }
+    
+}
